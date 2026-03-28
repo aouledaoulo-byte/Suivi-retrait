@@ -24,7 +24,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Find and normalize src folder
+      - name: Prepare sources
         run: |
           if [ -d "Src" ]; then mv Src src; fi
           ls src/
@@ -40,7 +40,14 @@ jobs:
           cp src/rapport_screen.dart elections_app/lib/rapport_screen.dart
           cp src/pubspec.yaml elections_app/pubspec.yaml
           sed -i 's/android:label="elections2026"/android:label="Elections 2026"/' elections_app/android/app/src/main/AndroidManifest.xml
-          cat >> elections_app/android/app/build.gradle << 'GRADLE'
+
+      - name: Fix Kotlin + Gradle
+        working-directory: elections_app/android
+        run: |
+          # Fix kotlin version in build.gradle
+          sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.0'/" build.gradle
+          # Force kotlin stdlib versions
+          cat >> app/build.gradle << 'GRADLE'
 
           configurations.all {
             resolutionStrategy {
