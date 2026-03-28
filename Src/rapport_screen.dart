@@ -412,9 +412,11 @@ class _RapportPage extends StatelessWidget {
           final arrPct  = arrTotI>0?arrTotR/arrTotI*100:0.0;
           // Arr header row
           centreRows2.add(pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.blue50), children: [
-            pw.TableCell(columnSpan: 8, child: pw.Padding(padding: const pw.EdgeInsets.all(4),
+            pw.Padding(padding: const pw.EdgeInsets.all(4),
               child: pw.Text('$arrName   |   ${fmt(arrTotI)} inscrits · ${fmt(arrTotR)} retirés · ${arrPct.toStringAsFixed(1)}%',
-                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)))),
+                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800))),
+            pw.SizedBox(), pw.SizedBox(), pw.SizedBox(),
+            pw.SizedBox(), pw.SizedBox(), pw.SizedBox(), pw.SizedBox(),
           ]));
           for (int i=0; i<cs.length; i++) {
             final c=cs[i];
