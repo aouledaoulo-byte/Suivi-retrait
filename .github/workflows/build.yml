@@ -9,6 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,13 +27,13 @@ jobs:
       - name: Create Flutter project
         run: |
           flutter create --org dj.elections --project-name elections2026 --platforms android elections_app
-          cp src/main.dart elections_app/lib/main.dart
-          cp src/election_data.dart elections_app/lib/election_data.dart
-          cp src/db_helper.dart elections_app/lib/db_helper.dart
-          cp src/saisie_screen.dart elections_app/lib/saisie_screen.dart
-          cp src/graphiques_screen.dart elections_app/lib/graphiques_screen.dart
-          cp src/rapport_screen.dart elections_app/lib/rapport_screen.dart
-          cp src/pubspec.yaml elections_app/pubspec.yaml
+          cp Src/main.dart elections_app/lib/main.dart
+          cp Src/election_data.dart elections_app/lib/election_data.dart
+          cp Src/db_helper.dart elections_app/lib/db_helper.dart
+          cp Src/saisie_screen.dart elections_app/lib/saisie_screen.dart
+          cp Src/graphiques_screen.dart elections_app/lib/graphiques_screen.dart
+          cp Src/rapport_screen.dart elections_app/lib/rapport_screen.dart
+          cp Src/pubspec.yaml elections_app/pubspec.yaml
           sed -i 's/android:label="elections2026"/android:label="Elections 2026"/' elections_app/android/app/src/main/AndroidManifest.xml
           cat >> elections_app/android/app/build.gradle << 'GRADLE'
 
