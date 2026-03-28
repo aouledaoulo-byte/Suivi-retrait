@@ -27,7 +27,6 @@ jobs:
       - name: Prepare sources
         run: |
           if [ -d "Src" ]; then mv Src src; fi
-          ls src/
 
       - name: Create Flutter project
         run: |
@@ -41,12 +40,18 @@ jobs:
           cp src/pubspec.yaml elections_app/pubspec.yaml
           sed -i 's/android:label="elections2026"/android:label="Elections 2026"/' elections_app/android/app/src/main/AndroidManifest.xml
 
-      - name: Fix Kotlin + Gradle
+      - name: Fix Kotlin version
         working-directory: elections_app/android
         run: |
-          # Fix kotlin version in build.gradle
-          sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.0'/" build.gradle
-          # Force kotlin stdlib versions
+          # Print current build.gradle for debug
+          cat build.gradle | head -20
+          # Force kotlin version - add at top if not present
+          if grep -q "kotlin_version" build.gradle; then
+            sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.0'/" build.gradle
+          else
+            sed -i "1s/^/buildscript { ext.kotlin_version = '1.9.0' }\n/" build.gradle
+          fi
+          # Add resolution strategy to app/build.gradle
           cat >> app/build.gradle << 'GRADLE'
 
           configurations.all {
