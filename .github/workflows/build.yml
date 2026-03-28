@@ -20,7 +20,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.24.0'
           channel: stable
           cache: true
 
@@ -38,30 +38,8 @@ jobs:
           cp src/graphiques_screen.dart elections_app/lib/graphiques_screen.dart
           cp src/rapport_screen.dart elections_app/lib/rapport_screen.dart
           cp src/pubspec.yaml elections_app/pubspec.yaml
-          sed -i 's/android:label="elections2026"/android:label="Elections 2026"/' elections_app/android/app/src/main/AndroidManifest.xml
-
-      - name: Fix Kotlin version
-        working-directory: elections_app/android
-        run: |
-          # Print current build.gradle for debug
-          cat build.gradle | head -20
-          # Force kotlin version - add at top if not present
-          if grep -q "kotlin_version" build.gradle; then
-            sed -i "s/kotlin_version = '[^']*'/kotlin_version = '1.9.0'/" build.gradle
-          else
-            sed -i "1s/^/buildscript { ext.kotlin_version = '1.9.0' }\n/" build.gradle
-          fi
-          # Add resolution strategy to app/build.gradle
-          cat >> app/build.gradle << 'GRADLE'
-
-          configurations.all {
-            resolutionStrategy {
-              force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0'
-              force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0'
-              force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0'
-            }
-          }
-          GRADLE
+          sed -i 's/android:label="elections2026"/android:label="Elections 2026"/' \
+            elections_app/android/app/src/main/AndroidManifest.xml
 
       - name: Build APK
         working-directory: elections_app
