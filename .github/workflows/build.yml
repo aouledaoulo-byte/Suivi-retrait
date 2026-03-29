@@ -41,8 +41,10 @@ jobs:
           sed -i 's/android:label="elections2026"/android:label="Elections 2026"/' \
             elections_app/android/app/src/main/AndroidManifest.xml
 
-      - name: Fix Kotlin stdlib conflict
+      - name: Fix Kotlin version
         run: |
+          sed -i "s/ext.kotlin_version = '[^']*'/ext.kotlin_version = '1.9.0'/" \
+            elections_app/android/build.gradle
           python3 -c "
           fix = '\nconfigurations.all {\n    resolutionStrategy {\n        force \"org.jetbrains.kotlin:kotlin-stdlib:1.9.0\"\n        force \"org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0\"\n        force \"org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.0\"\n    }\n}\n'
           open('elections_app/android/app/build.gradle', 'a').write(fix)
