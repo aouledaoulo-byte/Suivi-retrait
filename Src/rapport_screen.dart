@@ -45,7 +45,7 @@ class _RapportScreenState extends State<RapportScreen> {
       int totalIns = 0, totalRet = 0;
       for (final c in centres) {
         totalIns += c.inscrits;
-        totalRet += c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
+        totalRet = (totalRet + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
       }
       final pctNat = totalIns > 0 ? totalRet / totalIns * 100 : 0.0;
 
@@ -70,7 +70,7 @@ class _RapportScreenState extends State<RapportScreen> {
       final medals = ['馃','馃','馃','4锔忊儯','5锔忊儯'];
       for (int i = 0; i < 5 && i < ranked.length; i++) {
         final c = ranked[i];
-        final tot = c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
+        final int tot = (c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
         final p = c.inscrits > 0 ? tot / c.inscrits * 100 : 0.0;
         final flower = p >= 50 ? ' 馃尭' : '';
         top5 += '<tr style="background:${p>=50?"#fdf4ff":"white"}"><td style="text-align:center">${medals[i]}</td>'
@@ -80,7 +80,7 @@ class _RapportScreenState extends State<RapportScreen> {
       }
       for (int i = ranked.length - 1; i >= ranked.length - 5 && i >= 0; i--) {
         final c = ranked[i];
-        final tot = c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
+        final int tot = (c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
         final p = c.inscrits > 0 ? tot / c.inscrits * 100 : 0.0;
         bottom5 = '<tr><td style="text-align:center">鈿狅笍</td>'
             '<td><strong>${c.nomCentre}</strong></td>'
@@ -94,7 +94,7 @@ class _RapportScreenState extends State<RapportScreen> {
       for (final entry in arrMap.entries) {
         final cs = entry.value;
         final arrIns = cs.fold(0, (s, c) => s + c.inscrits);
-        final arrRet = cs.fold(0, (s, c) => s + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0));
+        final int arrRet = cs.fold<int>(0, (s, c) => s + (c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt());
         final arrPct = arrIns > 0 ? arrRet / arrIns * 100 : 0.0;
         final col = pctColor(arrPct);
         arrSection += '''
@@ -104,7 +104,7 @@ class _RapportScreenState extends State<RapportScreen> {
           </td>
         </tr>''';
         for (final c in cs..sort((a,b)=>a.codeCentre.compareTo(b.codeCentre))) {
-          final tot = c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
+          final int tot = (c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
           final rest = c.inscrits - tot;
           final p = c.inscrits > 0 ? tot / c.inscrits * 100 : 0.0;
           final col2 = pctColor(p);
@@ -219,7 +219,7 @@ td{padding:5px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
     int totalRet = 0, totalIns = 0;
     for (final c in centres) {
       totalIns += c.inscrits;
-      totalRet += c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
+      totalRet = (totalRet + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
     }
     final pct = totalIns > 0 ? totalRet / totalIns * 100 : 0.0;
 
