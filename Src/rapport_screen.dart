@@ -33,7 +33,7 @@ class _RapportScreenState extends State<RapportScreen> {
   Future<void> _generateAndShare() async {
     setState(() => _generating = true);
     try {
-      final centres = ElectionData.centres;
+      final centres = ElectionData.centresSuivi;
       final newByCode = <int, int>{};
       for (final s in _saisies) {
         newByCode[s.codeCentre] = (newByCode[s.codeCentre] ?? 0) + s.retraits;
@@ -44,8 +44,8 @@ class _RapportScreenState extends State<RapportScreen> {
 
       int totalIns = 0, totalRet = 0;
       for (final c in centres) {
-        totalIns += c.inscrits;
-        totalRet = (totalRet + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
+        totalIns = totalIns + c.inscrits;
+        totalRet = totalRet + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
       }
       final pctNat = totalIns > 0 ? totalRet / totalIns * 100 : 0.0;
 
@@ -211,15 +211,15 @@ td{padding:5px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
   @override
   Widget build(BuildContext context) {
     if (!_loaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    final centres = ElectionData.centres;
+    final centres = ElectionData.centresSuivi;
     final newByCode = <int, int>{};
     for (final s in _saisies) {
       newByCode[s.codeCentre] = (newByCode[s.codeCentre] ?? 0) + s.retraits;
     }
     int totalRet = 0, totalIns = 0;
     for (final c in centres) {
-      totalIns += c.inscrits;
-      totalRet = (totalRet + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0)).toInt();
+      totalIns = totalIns + c.inscrits;
+      totalRet = totalRet + c.cumulRetraits + (newByCode[c.codeCentre] ?? 0);
     }
     final pct = totalIns > 0 ? totalRet / totalIns * 100 : 0.0;
 
