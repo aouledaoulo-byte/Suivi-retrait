@@ -1,353 +1,285 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'election_data.dart';
 import 'db_helper.dart';
 
-class SyncScreen extends StatefulWidget {
-  const SyncScreen({super.key});
+class RapportScreen extends StatefulWidget {
+  const RapportScreen({super.key});
   @override
-  State<SyncScreen> createState() => _SyncScreenState();
+  State<RapportScreen> createState() => _RapportScreenState();
 }
 
-class _SyncScreenState extends State<SyncScreen> {
-  final DbHelper _db = DbHelper();
-  bool _loading = false;
-  String _status = '';
-  bool _statusOk = true;
-  List<String> _dates = [];
-  String? _selectedDate; // null = toutes les dates
+class _RapportScreenState extends State<RapportScreen> {
+  bool _loading = true;
+  int _nouveaux = 0;
+  Map<int, int> _newByCentre = {};
 
   @override
   void initState() {
     super.initState();
-    _loadDates();
+    _load();
   }
 
-  Future<void> _loadDates() async {
-    final dates = await _db.getDistinctDates();
-    setState(() {
-      _dates = dates;
-      _selectedDate = dates.isNotEmpty ? dates.first : null;
+  Future<void> _load() async {
+    final saisies = await DbHelper.all();
+    final Map<int, int> map = {};
+    for (final s in saisies) {
+      map[s.codeCentre] = (map[s.codeCentre] ?? 0) + s.retraits;
+    }
+    if (mounted) setState(() {
+      _newByCentre = map;
+      _nouveaux = map.values.fold(0, (a, b) => a + b);
+      _loading = false;
     });
   }
 
-  Future<void> _exportCsv({String? date}) async {
-    setState(() { _loading = true; _status = ''; });
-    try {
-      final rows = await _db.getAllRetraits();
-      final data = date != null
-          ? rows.where((r) => r['date'] == date).toList()
-          : rows;
-
-      if (data.isEmpty) {
-        setState(() {
-          _status = 'Aucune donnée pour ${date ?? "toutes les dates"}';
-          _statusOk = false;
-        });
-        return;
-      }
-
-      final sb = StringBuffer();
-      sb.writeln('code_centre,nom_centre,date,retraits,arrondissement');
-      for (final r in data) {
-        final nom = (r['nom_centre'] as String).replaceAll(',', ' ');
-        sb.writeln(
-          '${r["code_centre"]},$nom,${r["date"]},${r["retraits"]},${r["arrondissement"]}',
-        );
-      }
-
-      final dir = await getTemporaryDirectory();
-      final label = date?.replaceAll('/', '_') ?? 'complet';
-      final file = File('${dir.path}/retraits_$label.csv');
-      await file.writeAsString(sb.toString());
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Retraits cartes électeurs — $label',
-        text: 'Export CSV Elections 2026 Djibouti',
-      );
-
-      setState(() {
-        _status =
-            '✅ CSV partagé — ${data.length} lignes (${date ?? "toutes dates"})';
-        _statusOk = true;
-      });
-    } catch (e) {
-      setState(() { _status = '❌ Erreur : $e'; _statusOk = false; });
-    } finally {
-      setState(() => _loading = false);
+  String _fmt(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
+      buf.write(s[i]);
     }
+    return buf.toString();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // En-tête
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF059669), Color(0xFF047857)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-            child: const Column(
-              children: [
-                Icon(Icons.upload_file, color: Colors.white, size: 40),
-                SizedBox(height: 10),
-                Text(
-                  'EXPORT CSV',
-                  style: TextStyle(
-                    color: Colors.white, fontSize: 18,
-                    fontWeight: FontWeight.w900, letterSpacing: 1,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Exporter les retraits · Partager via WhatsApp / Email / Drive',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
-          // Sélection date
-          const Text(
-            'CHOISIR UNE DATE',
-            style: TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w700,
-              color: Color(0xFF6B7280), letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Column(
-              children: [
-                RadioListTile<String?>(
-                  value: null,
-                  groupValue: _selectedDate,
-                  onChanged: (v) => setState(() => _selectedDate = v),
-                  title: const Text(
-                    'Toutes les dates',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  subtitle: Text(
-                    '${_dates.length} jour(s) disponibles',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  activeColor: const Color(0xFF059669),
-                  dense: true,
-                ),
-                ..._dates.expand((d) => [
-                  const Divider(height: 1),
-                  RadioListTile<String?>(
-                    value: d,
-                    groupValue: _selectedDate,
-                    onChanged: (v) => setState(() => _selectedDate = v),
-                    title: Text(
-                      d,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Export du jour',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    activeColor: const Color(0xFF059669),
-                    dense: true,
-                  ),
-                ]),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+    final totalRetires = ElectionData.totalRetires + _nouveaux;
+    final totalInscrits = ElectionData.totalInscrits;
+    final pctNat = totalRetires / totalInscrits * 100;
 
-          // Bouton export
-          SizedBox(
+    // SynthÃ¨se arrondissements live
+    final Map<String, _ArrAcc> arrMap = {};
+    for (final c in ElectionData.centresSuivi) {
+      arrMap.putIfAbsent(c.arrondissement, () => _ArrAcc());
+      arrMap[c.arrondissement]!.inscrits += c.inscrits;
+      arrMap[c.arrondissement]!.retires  += c.cumulRetraits + (_newByCentre[c.codeCentre] ?? 0);
+    }
+    final arrs = arrMap.entries.map((e) => (
+      nom: e.key,
+      inscrits: e.value.inscrits,
+      retires: e.value.retires,
+      pct: e.value.inscrits > 0 ? e.value.retires / e.value.inscrits * 100 : 0.0,
+    )).toList()..sort((a, b) => b.pct.compareTo(a.pct));
+
+    // Centres triÃ©s par taux desc
+    final centresSorted = ElectionData.centresSuivi.map((c) {
+      final total = c.cumulRetraits + (_newByCentre[c.codeCentre] ?? 0);
+      final pct = c.inscrits > 0 ? total / c.inscrits * 100 : 0.0;
+      return (centre: c, total: total, pct: pct);
+    }).toList()..sort((a, b) => b.pct.compareTo(a.pct));
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // En-tÃªte
+          Container(
             width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: _loading
-                  ? null
-                  : () => _exportCsv(date: _selectedDate),
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.share, size: 20),
-              label: Text(
-                _loading
-                    ? 'Génération...'
-                    : _selectedDate != null
-                        ? 'Exporter $_selectedDate'
-                        : 'Exporter tout',
-                style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF059669),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                disabledBackgroundColor:
-                    const Color(0xFF059669).withOpacity(0.5),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Statut
-          if (_status.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _statusOk
-                    ? const Color(0xFFF0FDF4)
-                    : const Color(0xFFFFF1F2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _statusOk
-                      ? const Color(0xFF86EFAC)
-                      : const Color(0xFFFCA5A5),
-                ),
-              ),
-              child: Text(
-                _status,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _statusOk
-                      ? const Color(0xFF166534)
-                      : const Color(0xFF991B1B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 24),
-
-          // Aide
-          Container(
-            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFBAE6FD)),
+              gradient: const LinearGradient(colors: [Color(0xFF1565C0), Color(0xFF1976D2)]),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '💡 Comment ça marche',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: Color(0xFF0C4A6E),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _step('1', 'Sélectionnez la date (ou toutes)'),
-                _step('2', 'Appuyez sur "Exporter"'),
-                _step('3', 'Choisissez WhatsApp, Email, Drive…'),
-                _step('4', 'Intégrez le fichier CSV dans votre tableau de bord'),
-              ],
-            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              const Text('ðŸ‡©ðŸ‡¯', style: TextStyle(fontSize: 28)),
+              const SizedBox(height: 6),
+              const Text('RAPPORT DE SUIVI', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1)),
+              const Text('Retrait des cartes Ã©lectorales', style: TextStyle(color: Colors.white70, fontSize: 11)),
+              const SizedBox(height: 8),
+              Text('MÃ J : ${ElectionData.dateMaj}${_nouveaux > 0 ? " + saisies locales" : ""}',
+                  style: const TextStyle(color: Colors.white60, fontSize: 10)),
+            ]),
           ),
           const SizedBox(height: 14),
 
-          // Format
+          // KPIs nationaux
+          _sectionTitle('ðŸ“Š Situation nationale'),
+          const SizedBox(height: 8),
+          Row(children: [
+            _kpi('Inscrits',  _fmt(totalInscrits),          Colors.blue),
+            const SizedBox(width: 8),
+            _kpi('RetirÃ©es',  _fmt(totalRetires),            Colors.green),
+            const SizedBox(width: 8),
+            _kpi('Restant',   _fmt(totalInscrits - totalRetires), Colors.orange),
+          ]),
+          const SizedBox(height: 10),
+
+          // Barre de progression
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                const Text('Taux national', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text('${pctNat.toStringAsFixed(2)}%',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1565C0))),
+              ]),
+              const SizedBox(height: 6),
+              ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(
+                value: (pctNat / 100).clamp(0, 1),
+                backgroundColor: Colors.grey[200],
+                color: pctNat >= 40 ? Colors.green : Colors.orange,
+                minHeight: 10,
+              )),
+              const SizedBox(height: 4),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('${_fmt(totalRetires)} / ${_fmt(totalInscrits)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                Text('Objectif : 85%', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+              ]),
+              if (_nouveaux > 0) Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('+${_fmt(_nouveaux)} saisis localement inclus',
+                    style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Arrondissements
+          _sectionTitle('ðŸ™ï¸ SynthÃ¨se par arrondissement'),
+          const SizedBox(height: 8),
+          ...arrs.map((a) {
+            Color col = a.pct >= 40 ? Colors.green : a.pct >= 25 ? Colors.orange : Colors.red;
+            String badge = a.pct >= 40 ? 'OK' : a.pct >= 25 ? 'ALERTE' : 'CRITIQUE';
+            Color badgeBg = a.pct >= 40 ? const Color(0xFFDCFCE7) : a.pct >= 25 ? const Color(0xFFFEF9C3) : const Color(0xFFFEE2E2);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1))],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(
+                    a.nom.replaceAll('arrondissement', 'Arr.').replaceAll('Arrondissement', 'Arr.'),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                  )),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(20)),
+                    child: Text(badge, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: col)),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('${a.pct.toStringAsFixed(2)}%',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: col)),
+                ]),
+                const SizedBox(height: 5),
+                ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(
+                  value: (a.pct / 100).clamp(0, 1),
+                  backgroundColor: Colors.grey[200], color: col, minHeight: 6,
+                )),
+                const SizedBox(height: 4),
+                Text('${_fmt(a.retires)} retirÃ©s Â· ${_fmt(a.inscrits - a.retires)} restants',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ]),
+            );
+          }),
+          const SizedBox(height: 16),
+
+          // Classement centres
+          _sectionTitle('ðŸ† Classement des 39 centres'),
+          const SizedBox(height: 8),
+          ...centresSorted.asMap().entries.map((entry) {
+            final rank = entry.key + 1;
+            final item = entry.value;
+            final c = item.centre;
+            final pct = item.pct;
+            Color col = pct >= 40 ? Colors.green : pct >= 25 ? Colors.orange : Colors.red;
+            final isTop = rank <= 5;
+            final isBottom = rank > 34;
+            Color rowBg = isTop ? const Color(0xFFF0FDF4) : isBottom ? const Color(0xFFFFF1F2) : Colors.white;
+
+            String rankStr;
+            if (rank == 1) rankStr = 'ðŸ¥‡';
+            else if (rank == 2) rankStr = 'ðŸ¥ˆ';
+            else if (rank == 3) rankStr = 'ðŸ¥‰';
+            else rankStr = '$rank';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: rowBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(children: [
+                SizedBox(width: 28, child: Text(rankStr,
+                    style: TextStyle(fontSize: rank <= 3 ? 15 : 11, fontWeight: FontWeight.w700, color: const Color(0xFF1565C0)),
+                    textAlign: TextAlign.center)),
+                const SizedBox(width: 6),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(c.nomCentre, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(c.arrondissement.replaceAll('arrondissement', 'Arr.').replaceAll('Arrondissement', 'Arr.'),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                ])),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text('${pct.toStringAsFixed(1)}%',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: col)),
+                  Text('${_fmt(item.total)} / ${_fmt(c.inscrits)}',
+                      style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                ]),
+              ]),
+            );
+          }),
+          const SizedBox(height: 20),
+
+          // Pied de page
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '📄 Format du fichier',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 12,
-                    color: Color(0xFF374151),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'code_centre,nom_centre,date,retraits,arrondissement\n'
-                    '1,PREFECTURE,30/03/2026,32,Arrondissement du Plateau\n'
-                    '2,ECOLE ZPS,30/03/2026,96,Arrondissement du Plateau\n'
-                    '...',
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 9.5,
-                      color: Color(0xFF86EFAC),
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              'Ã‰lections PrÃ©sidentielles 2026 â€” RÃ©publique de Djibouti\n162 833 inscrits Â· 413 bureaux Â· 39 centres Â· 6 arrondissements',
+              style: const TextStyle(fontSize: 9, color: Colors.grey),
+              textAlign: TextAlign.center,
             ),
           ),
           const SizedBox(height: 30),
-        ],
+        ]),
       ),
     );
   }
 
-  Widget _step(String n, String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 7),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 20, height: 20,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0284C7),
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            n,
-            style: const TextStyle(
-              color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF1E40AF)),
-          ),
-        ),
-      ],
+  Widget _sectionTitle(String t) => Text(
+    t, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1565C0)),
+  );
+
+  Widget _kpi(String label, String value, Color color) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(children: [
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+      ]),
     ),
   );
+}
+
+class _ArrAcc {
+  int inscrits = 0;
+  int retires  = 0;
 }
