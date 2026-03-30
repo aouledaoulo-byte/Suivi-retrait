@@ -1,0 +1,19 @@
+name: elections2026
+description: Suivi retrait cartes électorales — Djibouti 2026
+version: 1.4.0+21
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.3.0
+  path: ^1.9.0
+  path_provider: ^2.1.2
+  share_plus: ^9.0.0
+
+flutter:
+  uses-material-design: true
